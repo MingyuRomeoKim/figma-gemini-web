@@ -1,0 +1,5 @@
+*-lock.json
+node_modules
+.idea
+figma.md
+review.md

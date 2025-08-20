@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Figma → Gemini 리뷰</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen">
+  <div class="max-w-5xl mx-auto p-6">
+    <header class="mb-6">
+      <h1 class="text-2xl font-bold text-slate-800">Figma → Gemini 리뷰</h1>
+      <p class="text-slate-600">FIGMA_PAT / GEMINI_API_KEY / 프롬프트를 입력하고, Figma 문서 주소로 분석하세요.</p>
+    </header>
+
+    <section id="step1" class="bg-white rounded-2xl shadow p-5 border border-slate-200">
+      <h2 class="text-lg font-semibold mb-3">1) 토큰 & 프롬프트</h2>
+      <div class="grid grid-cols-1 gap-4">
+        <input id="figmaPat" type="password" placeholder="FIGMA_PAT" class="w-full rounded-xl border p-3 outline-none focus:ring focus:ring-indigo-200" />
+        <input id="geminiKey" type="password" placeholder="GEMINI_API_KEY" class="w-full rounded-xl border p-3 outline-none focus:ring focus:ring-indigo-200" />
+        <textarea id="prompt" rows="12" class="w-full rounded-xl border p-3 outline-none focus:ring focus:ring-indigo-200"></textarea>
+        <div class="flex items-center gap-3">
+          <label class="text-sm text-slate-600">모델</label>
+          <select id="model" class="rounded-lg border p-2">
+            <option value="gemini-1.5-flash" selected>gemini-1.5-flash (권장)</option>
+            <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+            <option value="gemini-2.5-pro">gemini-2.5-pro (쿼터주의)</option>
+          </select>
+          <label class="text-sm text-slate-600 ml-4">입력 길이 제한(문자)</label>
+          <input id="limit" type="number" value="120000" class="w-40 rounded-lg border p-2" />
+          <button id="saveCfg" class="ml-auto px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700">저장</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="step2" class="bg-white rounded-2xl shadow p-5 border border-slate-200 mt-6 hidden">
+      <h2 class="text-lg font-semibold mb-3">2) Figma 문서 분석</h2>
+      <div class="flex gap-3">
+        <input id="figmaLink" type="text" placeholder="https://www.figma.com/design/FILEKEY?node-id=..." class="flex-1 rounded-xl border p-3 outline-none focus:ring focus:ring-indigo-200" />
+        <button id="analyze" class="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700">분석하기</button>
+      </div>
+      <p id="status" class="text-sm text-slate-500 mt-2"></p>
+      <div id="result" class="prose prose-slate max-w-none mt-6 leading-relaxed prose-p:my-2 whitespace-pre-line"></div>
+    </section>
+  </div>
+
+<script src="/app.js"></script>
+<script>
+  const defaultPrompt = `너는 10년 경험의 시니어 PM이자 플랫폼 아키텍트, Figma 전문가다. 개발팀과의 협업 경험이 풍부하여 기획의 개발 실현 가능성을 정확히 판단할 수 있다.
+
+**분석 원칙:**
+- 첨부된 figma.md만을 근거로 판단한다. 문서에 없는 추측/가정은 금지한다.
+- Figma 사용법이 부적절하거나 개발 관점에서 문제가 있다면 반드시 지적한다.
+- 모든 지적에는 반드시 문서 앵커([#page][#frame][#node])와 1~2개의 짧은 인용(최대 20단어)을 붙인다.
+- 개발 난이도와 비즈니스 임팩트를 함께 고려하여 우선순위를 제시한다.
+
+**평가 관점:**
+1. **기능 명세의 완성도** - 개발자가 바로 구현할 수 있을 정도로 구체적인가?
+2. **사용자 경험(UX) 일관성** - 플랫폼 전반의 UX 패턴이 일관되는가?
+3. **기술적 실현 가능성** - 현실적인 개발 리소스로 구현 가능한가?
+4. **비즈니스 로직 명확성** - 예외상황과 엣지케이스가 정의되어 있는가?
+5. **확장성/유지보수성** - 향후 기능 추가나 변경이 용이한 구조인가?
+6. **Figma 활용도** - 컴포넌트, 오토레이아웃, 프로토타입 등을 적절히 활용했는가?
+
+# 출력 형식 (Markdown), 모든 글은 한글로 출력
+
+## 📋 요약 (5-15줄)
+전체적인 기획 품질과 개발 준비도를 한눈에 파악할 수 있도록 요약
+
+## ✅ 잘된 점 (3-7개)
+- [분야] 구체적인 강점과 해당 앵커 링크
+
+## 🔧 Figma 사용법 개선점 (없으면 PASS)
+개발 효율성과 디자인 시스템 관점에서의 Figma 활용 개선사항
+- 컴포넌트화 누락
+- 네이밍 컨벤션 문제
+- 오토레이아웃 미적용
+- 프로토타입 연결 누락 등
+
+## ⚠️ 리스크/모호함 (우선순위순, 5-20개, 없으면 PASS)
+**[HIGH/MEDIUM/LOW] [카테고리] 제목**
+- 근거: [#page:...][#frame:...][#node:...] "인용문"
+- 개발 임팩트: (개발 난이도, 예상 공수)
+- 비즈니스 리스크: (사용자 경험, 비즈니스 로직)
+- 제안: (구체적인 액션 아이템)
+
+## 🚀 보완 제안 (없으면 PASS)
+| 우선순위 | 항목 | 담당 | 예상 난이도 | ETA | 비고 |
+|---------|------|------|------------|-----|------|
+| P0 | ... | PM/Design/Dev | High/Medium/Low | 1w | 필수사항 |
+
+## 💡 개발 가이드라인 (없으면 PASS)
+기획서를 바탕으로 개발팀이 고려해야 할 기술적 포인트들:
+- API 설계 시 주의사항
+- 프론트엔드 컴포넌트 구조 제안
+- 백엔드 비즈니스 로직 복잡도
+- 성능 최적화 필요 영역
+- 테스트 시나리오 제안
+
+## 📈 다음 단계 액션 아이템
+1. **즉시 수정 필요 (1-2일)**
+2. **우선 보완 (1주)**
+3. **장기 개선 (2-4주)**
+`;
+  document.getElementById("prompt").value = defaultPrompt;
+</script>
+</body>
+</html>
