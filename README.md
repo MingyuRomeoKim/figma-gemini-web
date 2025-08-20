@@ -12,6 +12,19 @@ npm install
 npm start   # http://localhost:3000
 ```
 
+## 도커실행
+```bash
+# 빌드 (필요 시 CLI 버전 고정)
+docker build -t figma-gemini-web:latest \
+  --build-arg GEMINI_CLI_PKG=@google/gemini-cli .
+
+# 로컬 기동(Helm 없이 테스트할 때만)
+docker run --rm -p 3000:3000 \
+  -v figma_data:/app/data \
+  --name figma-gemini-web figma-gemini-web:latest \
+  node server.js
+```
+
 ## 사용 흐름
 1. 브라우저에서 `http://localhost:3000` 접속
 2. FIGMA_PAT, GEMINI_API_KEY, 프롬프트 입력 후 **저장**
